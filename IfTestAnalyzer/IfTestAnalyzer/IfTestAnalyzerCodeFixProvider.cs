@@ -12,13 +12,14 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Rename;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.Formatting;
 
 namespace IfTestAnalyzer
 {
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(IfTestAnalyzerCodeFixProvider)), Shared]
     public class IfTestAnalyzerCodeFixProvider : CodeFixProvider
     {
-        private const string title = "Make uppercase";
+        private const string title = "Add Braces";
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds
         {
@@ -40,34 +41,30 @@ namespace IfTestAnalyzer
             var diagnosticSpan = diagnostic.Location.SourceSpan;
 
             // Find the type declaration identified by the diagnostic.
-            var declaration = root.FindToken(diagnosticSpan.Start).Parent.AncestorsAndSelf().OfType<TypeDeclarationSyntax>().First();
+            var declaration = root.FindToken(diagnosticSpan.Start).Parent
+                .AncestorsAndSelf().OfType<IfStatementSyntax>().First();
 
             // Register a code action that will invoke the fix.
             context.RegisterCodeFix(
-                CodeAction.Create(
-                    title: title,
-                    createChangedSolution: c => MakeUppercaseAsync(context.Document, declaration, c), 
-                    equivalenceKey: title),
-                diagnostic);
+                 CodeAction.Create("Add Braces", c => AddBracesAsync(context.Document, declaration, c)), diagnostic);
         }
 
-        private async Task<Solution> MakeUppercaseAsync(Document document, TypeDeclarationSyntax typeDecl, CancellationToken cancellationToken)
+        private async Task<Document> AddBracesAsync(Document document, IfStatementSyntax ifStatement, CancellationToken cancellationToken)
         {
-            // Compute new uppercase name.
-            var identifierToken = typeDecl.Identifier;
-            var newName = identifierToken.Text.ToUpperInvariant();
+            var nonBlockStatement = (ExpressionStatementSyntax)ifStatement.Statement;
 
-            // Get the symbol representing the type to be renamed.
-            var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
-            var typeSymbol = semanticModel.GetDeclaredSymbol(typeDecl, cancellationToken);
+            var newBlockStatement = SyntaxFactory.Block(nonBlockStatement)
+                .WithAdditionalAnnotations(Formatter.Annotation);
 
-            // Produce a new solution that has all references to that type renamed, including the declaration.
-            var originalSolution = document.Project.Solution;
-            var optionSet = originalSolution.Workspace.Options;
-            var newSolution = await Renamer.RenameSymbolAsync(document.Project.Solution, typeSymbol, newName, optionSet, cancellationToken).ConfigureAwait(false);
+            var root = await document.GetSyntaxRootAsync(cancellationToken);
 
-            // Return the new solution with the now-uppercase type name.
-            return newSolution;
+            var newRoot = root.ReplaceNode<SyntaxNode>(
+                nonBlockStatement, newBlockStatement);
+
+            var newDocument = document.WithSyntaxRoot(newRoot);
+
+            return newDocument;
+                
         }
     }
 }

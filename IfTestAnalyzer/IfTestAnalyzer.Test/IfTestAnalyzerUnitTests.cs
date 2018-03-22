@@ -26,46 +26,58 @@ namespace IfTestAnalyzer.Test
         public void TestMethod2()
         {
             var test = @"
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
-    using System.Threading.Tasks;
-    using System.Diagnostics;
+using System;
 
-    namespace ConsoleApplication1
+namespace IfTestCurlyBraceTester
+{
+    class Program
     {
-        class TypeName
-        {   
+        static void Main(string[] args)
+        {
+            if(1==1)
+            Console.WriteLine('Without Curly');
+
+            if (1==1)
+            {
+                Console.WriteLine('With Curly');
+            }
         }
-    }";
+    }
+}";
             var expected = new DiagnosticResult
             {
                 Id = "IfTestAnalyzer",
-                Message = String.Format("Type name '{0}' contains lowercase letters", "TypeName"),
-                Severity = DiagnosticSeverity.Warning,
+                Message = "You need curly braces around your if test",
+                Severity = DiagnosticSeverity.Error,
                 Locations =
                     new[] {
-                            new DiagnosticResultLocation("Test0.cs", 11, 15)
+                            new DiagnosticResultLocation("Test0.cs", 11, 13)
                         }
             };
 
             VerifyCSharpDiagnostic(test, expected);
 
             var fixtest = @"
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
-    using System.Threading.Tasks;
-    using System.Diagnostics;
+using System;
 
-    namespace ConsoleApplication1
+namespace IfTestCurlyBraceTester
+{
+    class Program
     {
-        class TYPENAME
-        {   
+        static void Main(string[] args)
+        {
+            if(1==1)
+            {
+                Console.WriteLine('Without Curly');
+            }
+
+            if (1==1)
+            {
+                Console.WriteLine('With Curly');
+            }
         }
-    }";
+    }
+}";
             VerifyCSharpFix(test, fixtest);
         }
 
